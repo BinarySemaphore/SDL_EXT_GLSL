@@ -99,47 +99,58 @@ SDL_Window* createSDLGLWindow(const char* title, int width, int height, double f
     return window;
 }
 
-Texture loadTextureBMP(const char* filename) {
+Texture* loadTextureBMP(const char* filename) {
     int w, h;
-    SDL_Surface* surface;
-    SDL_Surface* image;
-    SDL_Rect area;
-    Texture texture;
-
-    // Zero texture.data should be handled by calling function
-    texture.data = 0;
+    SDL_Surface* original;
+    SDL_Surface* glcompat;
+    SDL_Rect orig_area, comp_area;
+    Texture* texture;
 
     // Load BMP file onto SDL surface
-    surface = SDL_LoadBMP(filename);
-    if (!surface) return texture;
+    original = SDL_LoadBMP(filename);
+    if (!original) return NULL;
 
-    // Create a standard size and depth image surface to take loaded surface
-    w = powerOfTwo(surface->w);
-    h = powerOfTwo(surface->h);
-    texture.coords[0] = 0.0f;
-    texture.coords[1] = 0.0f;
-    texture.coords[2] = (float)surface->w / w;
-    texture.coords[3] = (float)surface->h / h;
-    image = SDL_CreateRGBSurface(0, w, h, 32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff);
-    if (!image) return texture;
+    // Create a OpenGL compatible surface to take loaded surface
+    w = powerOfTwo(original->w);
+    h = powerOfTwo(original->h);
+    glcompat = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_RGB24);
+    if (!glcompat) {
+        SDL_FreeSurface(original);
+        return NULL;
+    }
 
-    // Copy loaded surface to image surface
-    area.x = 0;
-    area.y = 0;
-    area.w = surface->w;
-    area.h = surface->h;
-    SDL_BlitSurface(surface, &area, image, &area);
+    // Copy original into OpenGL compatible
+    orig_area.x = 0;
+    orig_area.y = 0;
+    orig_area.w = original->w;
+    orig_area.h = original->h;
+    comp_area.x = 0;
+    comp_area.y = 0;
+    comp_area.w = w;
+    comp_area.h = h;
+    SDL_BlitSurface(original, &orig_area, glcompat, &comp_area);
 
-    // Fill and bind texture.data with OpenGL
-    glGenTextures(1, &texture.data);
-    glBindTexture(GL_TEXTURE_2D, texture.data);
+    // Setup return Texture
+    texture = (Texture*)malloc(sizeof(Texture));
+    if (texture == NULL) {
+        SDL_FreeSurface(glcompat);
+        SDL_FreeSurface(original);
+        SDL_SetError("Failed to allocate memory for texture container");
+        return NULL;
+    }
+    texture->coords[0] = 0.0f;
+    texture->coords[1] = 0.0f;
+    texture->coords[2] = 1.0f; //(float)surface->w / w;
+    texture->coords[3] = 1.0f; //(float)surface->h / h;
+
+    // Fill and bind texture.data via OpenGL
+    glGenTextures(1, &texture->data);
+    glBindTexture(GL_TEXTURE_2D, texture->data);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // Alt: GL_LINEAR - slower but smoother textures
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, image->pixels);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, glcompat->pixels);
 
-    // Cleanup
-    SDL_FreeSurface(image);
-    SDL_FreeSurface(surface);
-
+    SDL_FreeSurface(glcompat);
+    SDL_FreeSurface(original);
     return texture;
 }
 

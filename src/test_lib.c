@@ -9,6 +9,7 @@
 
 void drawGLScene(SDL_Window* window, Texture* textures, Shader* shaders);
 
+#define NUM_TEXTURES 1
 #define NUM_SHADERS 6
 
 int current_shader = 0;
@@ -17,6 +18,9 @@ float angle = 0.0f;
 int main(int argc, char** argv) {
     int i;
     float m_coords[4] = { -3, 1.5, -2.5, 2.5 };
+    const char TEXTURE_FILENAMES[NUM_TEXTURES][100] = {
+        "resources/codezlybasictexturepack1(free)_128_7.bmp"
+    };
     const char SHADER_FILENAMES[NUM_SHADERS][100] = {
         "resources/shader_color.sdr",
         "resources/shader_texture.sdr",
@@ -26,7 +30,7 @@ int main(int argc, char** argv) {
         "resources/shader_mandelbrot.sdr"
     };
     Shader shaders[NUM_SHADERS];
-    Texture textures[10];
+    Texture* textures[NUM_TEXTURES];
     Uint8* keys;
     SDL_Window* window;
     SDL_Event event;
@@ -39,9 +43,9 @@ int main(int argc, char** argv) {
     );
 
     // Load Texture(s)
-    textures[0] = loadTextureBMP("resources/brick.bmp");
-    if (textures[0].data == 0) {
-        printf("Unable to load brick.bmp: %s\n", SDL_GetError());
+    textures[0] = loadTextureBMP(TEXTURE_FILENAMES[0]);
+    if (textures[0] == NULL) {
+        printf("Unable to load texture: %s\n", SDL_GetError());
         SDL_Quit();
         return 1;
     }
@@ -107,14 +111,17 @@ int main(int argc, char** argv) {
     }
 
     // Clean Up
-    //freeShaders();
+    for (i=0; i < NUM_TEXTURES; i++) {
+        free(textures[i]);
+    }
+    freeShaders(shaders);
     SDL_DestroyWindow(window);
     SDL_Quit();
 
     return 0;
 }
 
-void drawTriangle(Texture* textures) {
+void drawTriangle(Texture** textures) {
     glBegin(GL_POLYGON);
 
     glColor3f(1.0f, 0.0f, 0.0f);
@@ -129,26 +136,26 @@ void drawTriangle(Texture* textures) {
     glEnd();
 }
 
-void drawQuad(Texture* textures) {
+void drawQuad(Texture** textures) {
     // Enable textures, set color combination type, and add texture(s)
     //glEnable(GL_TEXTURE_2D);  // Deprecated (use shader)
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-    glBindTexture(GL_TEXTURE_2D, textures[0].data);
+    glBindTexture(GL_TEXTURE_2D, textures[0]->data);
 
     glBegin(GL_QUADS);
 
     // Quads drawn clockwise starting at top left
     glColor3f(1.0f, 1.0f, 1.0f);
-    glTexCoord2f(textures[0].coords[0], textures[0].coords[1]);
+    glTexCoord2f(textures[0]->coords[0], textures[0]->coords[1]);
     glVertex3f(-1.0f, 1.0f, 0.0f);
 
-    glTexCoord2f(textures[0].coords[2], textures[0].coords[1]);
+    glTexCoord2f(textures[0]->coords[2], textures[0]->coords[1]);
     glVertex3f(1.0f, 1.0f, 0.0f);
 
-    glTexCoord2f(textures[0].coords[2], textures[0].coords[3]);
+    glTexCoord2f(textures[0]->coords[2], textures[0]->coords[3]);
     glVertex3f(1.0f, -1.0f, 0.0f);
 
-    glTexCoord2f(textures[0].coords[0], textures[0].coords[3]);
+    glTexCoord2f(textures[0]->coords[0], textures[0]->coords[3]);
     glVertex3f(-1.0f, -1.0f, 0.0f);
 
     // Disable textures
@@ -157,7 +164,7 @@ void drawQuad(Texture* textures) {
     glEnd();
 }
 
-void drawGLScene(SDL_Window* window, Texture* textures, Shader* shaders) {
+void drawGLScene(SDL_Window* window, Texture** textures, Shader* shaders) {
     // Setup scene 4 units in front of viewport/camera
     glTranslatef(0.0f, 0.0f, -4.0f);
 
