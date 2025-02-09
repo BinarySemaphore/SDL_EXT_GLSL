@@ -56,3 +56,4 @@ dkms.conf
 
 # Builds (not dist)
 build/
+dist/
