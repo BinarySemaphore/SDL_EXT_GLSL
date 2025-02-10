@@ -14,7 +14,7 @@ extern float DELTA_TIME;
 extern float CAMERA_MATRIX[16];
 
 typedef struct {
-    GLuint data;
+	GLuint data;
 } Texture;
 
 extern SDL_Window* createSDLGLWindow(const char* title, int width, int height, double fov, bool orthographic);
