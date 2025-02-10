@@ -9,7 +9,7 @@ float CAMERA_MATRIX[16];
 
 Uint64 LAST_TICKS;
 
-int powerOfTwo(int input) {
+int nearestPowerOfTwo(int input) {
     int value = 1;
     while (value < input) value <<= 1;
     return value;
@@ -99,59 +99,73 @@ SDL_Window* createSDLGLWindow(const char* title, int width, int height, double f
     return window;
 }
 
-Texture* loadTextureBMP(const char* filename) {
+Texture* loadTextureBMP(const char* filename, bool forceNrSqr) {
     int w, h;
+    float u, v;
     SDL_Surface* original;
     SDL_Surface* glcompat;
-    SDL_Rect orig_area, comp_area;
     Texture* texture;
 
     // Load BMP file onto SDL surface
     original = SDL_LoadBMP(filename);
-    if (!original) return NULL;
+    if (!original) {
+        SDL_SetError("Failed to load BMP \"%s\" | SDL error: %s", filename, SDL_GetError());
+        return NULL;
+    }
 
-    // Create a OpenGL compatible surface to take loaded surface
-    w = powerOfTwo(original->w);
-    h = powerOfTwo(original->h);
-    glcompat = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_RGB24);
+    // Create a OpenGL compatible surface (OpenGL 1.x change res if needed)
+    if (forceNrSqr || SDL_GL_VERSION[0] == '1') {
+        w = nearestPowerOfTwo(original->w);
+        h = nearestPowerOfTwo(original->h);
+        u = (float)original->w / w;
+        v = (float)original->h / h;
+    } else {
+        w = original->w;
+        h = original->h;
+        u = 1.0f;
+        v = 1.0f;
+    }
+    glcompat = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_RGBA32);
     if (!glcompat) {
         SDL_FreeSurface(original);
+        SDL_SetError("Failed to create SDL format surface for BMP \"%s\" | SDL surface error: %s", filename, SDL_GetError());
         return NULL;
     }
 
     // Copy original into OpenGL compatible
-    orig_area.x = 0;
-    orig_area.y = 0;
-    orig_area.w = original->w;
-    orig_area.h = original->h;
-    comp_area.x = 0;
-    comp_area.y = 0;
-    comp_area.w = w;
-    comp_area.h = h;
-    SDL_BlitSurface(original, &orig_area, glcompat, &comp_area);
+    if (SDL_BlitSurface(original, NULL, glcompat, NULL) != 0) {
+        SDL_FreeSurface(glcompat);
+        SDL_FreeSurface(original);
+        SDL_SetError("Failed to convert/transfer BMP \"%s\" for OpenGL | SDL blit surface error: %s", filename, SDL_GetError());
+        return NULL;
+    }
 
     // Setup return Texture
     texture = (Texture*)malloc(sizeof(Texture));
     if (texture == NULL) {
         SDL_FreeSurface(glcompat);
         SDL_FreeSurface(original);
-        SDL_SetError("Failed to allocate memory for texture container");
+        SDL_SetError("Failed to allocate texture memory for BMP \"%s\"", filename);
         return NULL;
     }
-    texture->coords[0] = 0.0f;
-    texture->coords[1] = 0.0f;
-    texture->coords[2] = 1.0f; //(float)surface->w / w;
-    texture->coords[3] = 1.0f; //(float)surface->h / h;
 
     // Fill and bind texture.data via OpenGL
     glGenTextures(1, &texture->data);
     glBindTexture(GL_TEXTURE_2D, texture->data);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // Alt: GL_LINEAR - slower but smoother textures
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, glcompat->pixels);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, glcompat->pixels);
 
     SDL_FreeSurface(glcompat);
     SDL_FreeSurface(original);
     return texture;
+}
+
+void freeTexture(Texture* texture) {
+    glDeleteTextures(1, &texture->data);
+    free(texture);
 }
 
 void drawGLBegin() {
@@ -209,5 +223,36 @@ void debugCameraControl(const Uint8* keys, float translation_speed, float rotati
         // Save matrix to update camera matrix; free matrix
         glGetFloatv(GL_MODELVIEW_MATRIX, CAMERA_MATRIX);
         glPopMatrix();
+    }
+}
+
+void glResetParameter(GLenum target) {
+    GLint param_iv[4];
+    GLfloat param_fv[4];
+
+    if (target == GL_TEXTURE_2D) {
+        glTexParameteri(target, GL_DEPTH_STENCIL_TEXTURE_MODE, GL_DEPTH_COMPONENT);
+        glTexParameteri(target, GL_TEXTURE_BASE_LEVEL, 0);
+        param_fv[0] = 0.0f;
+        param_fv[1] = 0.0f;
+        param_fv[2] = 0.0f;
+        param_fv[3] = 0.0f;
+        glTexParameterfv(target, GL_TEXTURE_BORDER_COLOR, param_fv);
+        glTexParameteri(target, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+        glTexParameteri(target, GL_TEXTURE_COMPARE_MODE, GL_NONE);
+        glTexParameterf(target, GL_TEXTURE_LOD_BIAS, 0.0f);
+        glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+        glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(target, GL_TEXTURE_MIN_LOD, -1000);
+        glTexParameteri(target, GL_TEXTURE_MAX_LOD, 1000);
+        glTexParameteri(target, GL_TEXTURE_MAX_LEVEL, 1000);
+        param_iv[0] = GL_RED;
+        param_iv[1] = GL_GREEN;
+        param_iv[2] = GL_BLUE;
+        param_iv[3] = GL_ALPHA;
+        glTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, param_iv);
+        glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(target, GL_TEXTURE_WRAP_R, GL_REPEAT);
     }
 }

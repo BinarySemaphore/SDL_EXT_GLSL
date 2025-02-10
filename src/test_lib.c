@@ -1,3 +1,15 @@
+/**
+ * Library testing source (not to be built with library)
+ * Build executable with self + library source to run a test with test_resources
+ * 
+ * Controls:
+ *  Move: W A S D Shift CTRL
+ *  Rotate: Arrow Keys
+ *  Select Shader: [ ]
+ *  Select Texture: ; '
+ *  Toggle Nearest/Linear Texture Mag: L
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -7,30 +19,37 @@
 #include "glsl_shader.h"
 #include "glsl_ext.h"
 
-void drawGLScene(SDL_Window* window, Texture* textures, Shader* shaders);
+void drawGLScene(SDL_Window* window, Texture** textures, Shader* shaders);
+void setDrawGLTexturesSmooth(bool smooth);
 
-#define NUM_TEXTURES 1
+#define NUM_TEXTURES 4
 #define NUM_SHADERS 6
 
 int current_shader = 0;
+int current_texture = 0;
 float angle = 0.0f;
 
 int main(int argc, char** argv) {
+    bool smoothTexture = false;
     int i;
+    float angle_speed = 0.0f;  // Deg per sec
     float m_coords[4] = { -3, 1.5, -2.5, 2.5 };
     const char TEXTURE_FILENAMES[NUM_TEXTURES][100] = {
-        "resources/codezlybasictexturepack1(free)_128_7.bmp"
+        "resources/test_corners_colors_oddres_32bit_alpha.bmp",
+        "resources/test_corners_colors_oddres_24bit.bmp",
+        "resources/test_corners_colors_oddres_16bit.bmp",
+        "resources/test_corners_colors_oddres_16bit_alpha.bmp"
     };
     const char SHADER_FILENAMES[NUM_SHADERS][100] = {
-        "resources/shader_color.sdr",
         "resources/shader_texture.sdr",
         "resources/shader_texcoords.sdr",
+        "resources/shader_color.sdr",
         "resources/shader_noise.sdr",
         "resources/shader_noise_mask.sdr",
         "resources/shader_mandelbrot.sdr"
     };
-    Shader shaders[NUM_SHADERS];
     Texture* textures[NUM_TEXTURES];
+    Shader shaders[NUM_SHADERS];
     Uint8* keys;
     SDL_Window* window;
     SDL_Event event;
@@ -43,11 +62,13 @@ int main(int argc, char** argv) {
     );
 
     // Load Texture(s)
-    textures[0] = loadTextureBMP(TEXTURE_FILENAMES[0]);
-    if (textures[0] == NULL) {
-        printf("Unable to load texture: %s\n", SDL_GetError());
-        SDL_Quit();
-        return 1;
+    for (i = 0; i < NUM_TEXTURES; i++) {
+        textures[i] = loadTextureBMP(TEXTURE_FILENAMES[i], false);
+        if (textures[i] == NULL) {
+            printf("Unable to load texture: %s\n", SDL_GetError());
+            SDL_Quit();
+            return 1;
+        }
     }
 
     // Load and Compile Shaders
@@ -69,6 +90,10 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    // Set OpenGL initial draw types
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    setDrawGLTexturesSmooth(smoothTexture);
+
     while (true) {
         // Draw GL Scene(s)
         drawGLBegin();
@@ -76,7 +101,7 @@ int main(int argc, char** argv) {
         drawGLEnd(window);
 
         // Updates
-        angle += 45.0f * DELTA_TIME;
+        angle += angle_speed * DELTA_TIME;
 
         // Update Mandelbrot uniforms if specific shader in use
         if (SDL_GLSL_SUPPORTED && SDL_GLSL_READY && current_shader == 5) {
@@ -92,7 +117,27 @@ int main(int argc, char** argv) {
             // Input Handling (resticted)
             if (event.type == SDL_KEYDOWN && event.key.repeat == 0) {
                 if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) break;
-                if (event.key.keysym.scancode == SDL_SCANCODE_SPACE) current_shader = (current_shader + 1) % NUM_SHADERS;
+
+                // Control Texture Smooth or Blocky
+                else if (event.key.keysym.scancode == SDL_SCANCODE_L) smoothTexture = !smoothTexture;
+
+                // Control Texture and Shader selections
+                else if (event.key.keysym.scancode == SDL_SCANCODE_SEMICOLON) current_texture -= 1;
+                else if (event.key.keysym.scancode == SDL_SCANCODE_APOSTROPHE) current_texture += 1;
+                else if (event.key.keysym.scancode == SDL_SCANCODE_LEFTBRACKET) current_shader -= 1;
+                else if (event.key.keysym.scancode == SDL_SCANCODE_RIGHTBRACKET) current_shader += 1;
+
+                // Keep selection within range by wrapping
+                if (current_texture < 0) current_texture = NUM_TEXTURES - 1;
+                else if (current_texture >= NUM_TEXTURES) current_texture = NUM_TEXTURES - current_texture;
+                if (current_shader < 0) current_shader = NUM_SHADERS - 1;
+                else if (current_shader >= NUM_SHADERS) current_shader = NUM_SHADERS - current_shader;
+
+                // Call here to update all textures for both smooth and selection changes
+                for (i = 0; i < NUM_TEXTURES; i++) {
+                    glBindTexture(GL_TEXTURE_2D, textures[i]->data);
+                    setDrawGLTexturesSmooth(smoothTexture);
+                }
             }
         }
 
@@ -112,7 +157,7 @@ int main(int argc, char** argv) {
 
     // Clean Up
     for (i=0; i < NUM_TEXTURES; i++) {
-        free(textures[i]);
+        freeTexture(textures[i]);
     }
     freeShaders(shaders);
     SDL_DestroyWindow(window);
@@ -124,6 +169,7 @@ int main(int argc, char** argv) {
 void drawTriangle(Texture** textures) {
     glBegin(GL_POLYGON);
 
+    // Draw clockwise starting from top
     glColor3f(1.0f, 0.0f, 0.0f);
     glVertex3f(0.0f, 1.0f, 0.0f);
 
@@ -137,29 +183,25 @@ void drawTriangle(Texture** textures) {
 }
 
 void drawQuad(Texture** textures) {
-    // Enable textures, set color combination type, and add texture(s)
-    //glEnable(GL_TEXTURE_2D);  // Deprecated (use shader)
+    // Setup Texturing
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-    glBindTexture(GL_TEXTURE_2D, textures[0]->data);
+    glBindTexture(GL_TEXTURE_2D, textures[current_texture]->data);
 
     glBegin(GL_QUADS);
 
-    // Quads drawn clockwise starting at top left
+    // Drawn clockwise starting at top left
     glColor3f(1.0f, 1.0f, 1.0f);
-    glTexCoord2f(textures[0]->coords[0], textures[0]->coords[1]);
+    glTexCoord2f(0.0f, 0.0f);
     glVertex3f(-1.0f, 1.0f, 0.0f);
 
-    glTexCoord2f(textures[0]->coords[2], textures[0]->coords[1]);
+    glTexCoord2f(1.0f, 0.0f);
     glVertex3f(1.0f, 1.0f, 0.0f);
 
-    glTexCoord2f(textures[0]->coords[2], textures[0]->coords[3]);
+    glTexCoord2f(1.0f, 1.0f);
     glVertex3f(1.0f, -1.0f, 0.0f);
 
-    glTexCoord2f(textures[0]->coords[0], textures[0]->coords[3]);
+    glTexCoord2f(0.0f, 1.0f);
     glVertex3f(-1.0f, -1.0f, 0.0f);
-
-    // Disable textures
-    // glDisable(GL_TEXTURE_2D);  // Deprecated (use shader)
 
     glEnd();
 }
@@ -168,9 +210,9 @@ void drawGLScene(SDL_Window* window, Texture** textures, Shader* shaders) {
     // Setup scene 4 units in front of viewport/camera
     glTranslatef(0.0f, 0.0f, -4.0f);
 
-    // Draw triangle 1.5 units left
+    // Draw triangle
     glPushMatrix();
-    glTranslatef(-1.5f, 0.0f, 0.0f);
+    glTranslatef(0.0f, 0.0f, -1.0f);
     drawTriangle(NULL);
     glPopMatrix();
 
@@ -179,14 +221,21 @@ void drawGLScene(SDL_Window* window, Texture** textures, Shader* shaders) {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glslShaderDraw(&shaders[current_shader], true);
 
-    // Draw quad 1.5 units right and rotate based on angle
+    // Draw quad
     glPushMatrix();
-    glTranslatef(1.5f, 0.0f, 0.0f);
+    glTranslatef(0.0f, 0.0f, 0.0f);
     glRotatef(angle, 1.0f, 0.0f, 0.0f);
     drawQuad(textures);
     glPopMatrix();
 
-    // Disable blending and shader
+    // Disable shaders
     glslShaderDraw(NULL, false);
-    glDisable(GL_BLEND);
+}
+
+void setDrawGLTexturesSmooth(bool smooth) {
+    if (smooth) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    } else {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    }
 }
