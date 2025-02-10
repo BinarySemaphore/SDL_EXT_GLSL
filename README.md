@@ -44,7 +44,7 @@ The following sections assume you at least have SDL2 and OpenGL installed on you
 ##### Preparing Build Directory
 * Create `build` directory in project's root folder
 * Create `resources` directory in `build`
-* Copy `*.bmp` files from `./test_resources/` into `./build/resources/`
+* Copy files (excluding `README.md`) from `./test_resources/` into `./build/resources/`
 > Note: Be sure to add `SDL2.dll` to `build` if using Windows (pick `x86` or `x64` as needed)
 
 ##### Windows (cl.exe)
