@@ -71,11 +71,12 @@ The following sections assume you at least have SDL2 and OpenGL installed on you
 Execute `.\build\test.exe`
 
 Controls:
-*  Move: `W` `A` `S` `D` `Shift` `CTRL`
-*  Rotate: `Arrow Keys`
-*  Select Shader: `[` `]`
-*  Select Texture: `;` `'`
-*  Toggle Smooth Texturing: `L`
+* Move: `W` `A` `S` `D` `Shift` `CTRL`
+* Rotate: `Arrow Keys`
+* Select Shader: `[` `]`
+* Select Texture: `;` `'`
+* Toggle Smooth Texturing: `L`
+* Toggle Quad Spin: `Spacebar`
 
 Expected four BMP textures.  First and last should have alpha channels.
 

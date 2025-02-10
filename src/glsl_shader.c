@@ -69,6 +69,9 @@ bool compileShader(GLhandleARB compiled, const GLcharARB* source) {
 
 bool compileShaderProgram(Shader* shader) {
 	int location;
+	shader->ready = false;
+
+	if (shader->vert_source == NULL || shader->frag_source == NULL) return false;
 
 	// Clear GL last error to detect any new error prior to final return
 	glGetError();
@@ -92,6 +95,8 @@ bool compileShaderProgram(Shader* shader) {
 	location = glGetUniformLocation(shader->program, "tex0");
 	if (location >= 0) glUniform1i(location, 0);
 	glUseProgramObject(0);
+
+	shader->ready = true;
 
 	return glGetError() == GL_NO_ERROR;
 }
@@ -129,13 +134,11 @@ bool compileShaders(Shader* shaders, int num_shaders) {
 
 	if (!SDL_GLSL_SUPPORTED) {
 		printf("Unable to compile shaders: shaders not supported");
-		return SDL_GLSL_READY;
 	}
 
 	for (i = 0; i < SHADER_COUNT; i++) {
 		if (!compileShaderProgram(&shaders[i])) {
 			printf("Unable to compile shader: \"%s\"\n", shaders[i].name);
-			return SDL_GLSL_READY;
 		}
 	}
 
@@ -160,12 +163,12 @@ void freeShaders(Shader* shaders) {
 
 void glslShaderDraw(Shader* shader, bool enable) {
 	if (SDL_GLSL_SUPPORTED && SDL_GLSL_READY) {
-		if (enable) glUseProgramObject(shader->program);
+		if (enable && shader->ready) glUseProgramObject(shader->program);
 		else glUseProgramObject(0);
 	}
 }
 
-char* readSectionFromFile(FILE* file, const char* start_tag, const char* end_tag) {
+char* readSourceFromFile(FILE* file) {
 	int size;
 	char line[MAX_LINE_SIZE];
 	char* dest_str;
@@ -175,14 +178,8 @@ char* readSectionFromFile(FILE* file, const char* start_tag, const char* end_tag
 	dest_str = (char*)malloc(sizeof(char) * MAX_SOURCE_SIZE);
 	dest_str[0] = '\0';
 
-	// Find start tag
+	// Get source lines
 	while (fgets(line, MAX_LINE_SIZE, file) != NULL) {
-		if (strcmp(line, start_tag) == 0) break;
-	}
-
-	// Get section
-	while (fgets(line, MAX_LINE_SIZE, file) != NULL) {
-		if (strcmp(line, end_tag) == 0) break;
 		strncat(dest_str, line, MAX_SOURCE_SIZE);
 	}
 
@@ -195,32 +192,35 @@ char* readSectionFromFile(FILE* file, const char* start_tag, const char* end_tag
 	return dest_str;
 }
 
-Shader loadGLSLFile(const char* filename) {
+int loadGLSLFile(Shader* target, int type, const char* filename) {
 	int filename_len;
-	Shader shader;
 	FILE* file;
 	
 	file = fopen(filename, "r");
 	if (file == NULL) {
-		printf("Failed to load file: \"%s\"\n", filename);
-		exit(1);
+		SDL_SetError("Failed to load file: \"%s\"\n", filename);
+		if (type == GLSL_VERT) target->vert_source = NULL;
+		else if (type == GLSL_FRAG) target->frag_source = NULL;
+		return 1;
 	}
 
 	filename_len = strlen(filename);
-	shader.name = (char*)malloc(sizeof(char) * (filename_len + 1));
-	strncpy(shader.name, filename, filename_len + 1);
+	target->name = (char*)malloc(sizeof(char) * (filename_len + 1));
+	strncpy(target->name, filename, filename_len + 1);
 
-	shader.vert_source = readSectionFromFile(file, "/* vertex shader start */\n", "/* vertex shader end */\n");
-	if (shader.vert_source == NULL) {
-		printf("Failed to load vertex source from file \"%s\"\n", filename);
-		exit(1);
+	if (type == GLSL_VERT) {
+		target->vert_source = readSourceFromFile(file);
+		if (target->vert_source == NULL) {
+			SDL_SetError("Failed to load vertex source from file \"%s\"", filename);
+			return 1;
+		}
+	} else if (type == GLSL_FRAG) {
+		target->frag_source = readSourceFromFile(file);
+		if (target->frag_source == NULL) {
+			SDL_SetError("Failed to load fragment source from file \"%s\"", filename);
+			return 1;
+		}
 	}
 
-	shader.frag_source = readSectionFromFile(file, "/* fragment shader start */\n", "/* fragment shader end */\n");
-	if (shader.frag_source == NULL) {
-		printf("Failed to load fragment source from file \"%s\"\n", filename);
-		exit(1);
-	}
-
-	return shader;
+	return 0;
 }
