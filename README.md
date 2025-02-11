@@ -105,17 +105,18 @@ Building the static library.
   * Source tagets to build: `sdl_gl.c glsl_shader.c glsl_ext.c`
 * Build Library (`ar`)
   * Flags: `rcs`
-  * Build output: `-o ../build/libSDL_EXT_GLSL.so`
+  * Build output: `../build/libSDL_EXT_GLSL.so`
   * Obj target to build: `sdl_gl.o glsl_shader.o glsl_ext.o`
 
 ### Package/Distribute
 
 #### Windows
 Run batch script: `scripts\package_for_dist.bat`
-> Note: Can run from project root directory or from `scripts` directory
+> Note: Can run from project root or `scripts` directory
 
 #### Linux
-...
+Run script: `scripts\package_for_dist.sh`
+> Note: Can run from project root or `scripts` directory
 
 After scripts, `dist` with subdirectory `SDL_EXT_GLSL` should exist.
 Enter `dist`, compress `SDL_EXT_GLSL` with versioning.
