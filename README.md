@@ -60,11 +60,12 @@ The following sections assume you at least have SDL2 and OpenGL installed on you
     > Note: `<full-path-SDL2-lib-dir>` can be `x86` or `x64` (depends only on `cl.exe` selected for build)
 
 ##### Linux (gcc)
+> Note: Run `$ sdl2-config --cflags --libs` to get SDL args for gcc
 * Set working dir: `./src`
-* Flags: `-O3`
+* Flags: `-O3 -DNO_SHARED_MEMORY -D_REENTRANT -D_THREAD_SAFE`
 * Add SDL2 include dir: `-I<full-path-SDL2-include-dir>`
 * Add Libraries: `-lm -lSLD2 -lGL`
-* Build output: `-o ../build/test.exe`
+* Build output: `-o ../build/test`
 * Source tagets to build: `test_lib.c sdl_gl.c glsl_shader.c glsl_ext.c`
 
 ##### Running Test
@@ -97,8 +98,9 @@ Building the static library.
 
 #### Linux (gcc/ar)
 * Build Objects (`gcc`)
+   > Note: Run `$ sdl2-config --cflags` to get SDL args for gcc
   * Set working dir: `./src`
-  * Flags: `-O3 -c`
+  * Flags: `-O3 -c -DNO_SHARED_MEMORY -D_REENTRANT -D_THREAD_SAFE`
   * Add SDL2 include dir: `-I<full-path-SDL2-include-dir>`
   * Source tagets to build: `sdl_gl.c glsl_shader.c glsl_ext.c`
 * Build Library (`ar`)

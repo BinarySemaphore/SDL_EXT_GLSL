@@ -7,7 +7,6 @@ extern "C"{
 
 #include <SDL.h>
 #include <SDL_opengl.h>
-#include <gl/GL.h>
 
 extern char SDL_GL_VERSION[150];
 extern float DELTA_TIME;

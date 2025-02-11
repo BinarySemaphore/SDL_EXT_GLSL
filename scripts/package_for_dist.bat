@@ -4,13 +4,12 @@ setlocal
 echo Package Build for Distribution
 
 :: Figure out where we're running
-echo Checking Location...
+echo Checking location...
 set src_dir=.\src
 set build_dir=.\build
 set dist_dir=.\dist
 
 if not exist %src_dir% (
-	echo Running from project script folder
 	set src_dir=.%src_dir%
 	set build_dir=.%build_dir%
 	set dist_dir=.%dist_dir%
@@ -19,9 +18,11 @@ if not exist %src_dir% (
 )
 if not exist %src_dir% (
 	echo Cannot find source folder "src" from here or one folder above
-	echo Make sure your running this script from the project folder
+	echo Make sure you're running this script from the project root or scripts folder
 	pause
 	exit /b 1
+) else (
+	echo Running from project scripts folder
 )
 
 echo:
@@ -42,7 +43,7 @@ if not "%arch%"=="x86" if not "%arch%"=="x64" if not "%arch%"=="arm32" if not "%
 )
 
 :: Find lib file and config dist output name
-echo Finding Built Library...
+echo Finding built library...
 set lib_name=SDL_EXT_GLSL
 set lib_final_name=SDL_EXT_GLSL
 
@@ -79,7 +80,7 @@ if not exist %libpath% (
 echo Found %libpath%
 echo:
 
-:: Start assembling dist folder
+:: Assembling dist folder
 echo Setup dist...
 if not exist %dist_dir% (
 	echo Create dist
@@ -88,7 +89,6 @@ if not exist %dist_dir% (
 if not exist %dist_dir%\SDL_EXT_GLSL (
 	echo Create dist\SDL_EXT_GLSL
 	mkdir %dist_dir%\SDL_EXT_GLSL
-	echo next
 ) else (
 	echo Dist already exists
 )
@@ -100,19 +100,20 @@ if not exist %dist_dir%\SDL_EXT_GLSL\include (
 	echo Dist already has includes
 	set /p update="Update includes? (y/n): "
 	if "%update%"=="y" (
-		echo Updated includes
+		del /s /f /q %dist_dir%\SDL_EXT_GLSL\include\*
 		copy %src_dir%\*.h %dist_dir%\SDL_EXT_GLSL\include\
+		echo Updated includes
 	)
 )
 if not exist %dist_dir%\SDL_EXT_GLSL\%lib_final_name% (
-	echo Adding static library for %platform% %arch% as %lib_final_name%
+	echo Adding library for %platform% %arch% as %lib_final_name%
 	copy %libpath% %dist_dir%\SDL_EXT_GLSL\%lib_final_name%
 ) else (
 	echo Dist already has %lib_final_name% for %platform% %arch%
 	set /p update="Update lib? (y/n): "
 	if "%update%"=="y" (
-		echo Updated lib %lib_final_name%
 		copy %libpath% %dist_dir%\SDL_EXT_GLSL\%lib_final_name%
+		echo Updated lib %lib_final_name%
 	)
 )
 

@@ -101,7 +101,6 @@ SDL_Window* createSDLGLWindow(const char* title, int width, int height, double f
 
 Texture* loadTextureBMP(const char* filename, bool forceNrSqr) {
 	int w, h;
-	float u, v;
 	SDL_Surface* original;
 	SDL_Surface* glcompat;
 	Texture* texture;
@@ -117,13 +116,9 @@ Texture* loadTextureBMP(const char* filename, bool forceNrSqr) {
 	if (forceNrSqr || SDL_GL_VERSION[0] == '1') {
 		w = nearestPowerOfTwo(original->w);
 		h = nearestPowerOfTwo(original->h);
-		u = (float)original->w / w;
-		v = (float)original->h / h;
 	} else {
 		w = original->w;
 		h = original->h;
-		u = 1.0f;
-		v = 1.0f;
 	}
 	glcompat = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_RGBA32);
 	if (!glcompat) {
