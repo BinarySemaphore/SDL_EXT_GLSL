@@ -39,7 +39,7 @@ Working with source code or building for a specific system.
 Configure include and linker as if any other SDL2 + OpenGL project.
 
 The following sections assume you at least have SDL2 and OpenGL installed on your system:
-> Note: see [wiki.libsdl.org/SDL2/FrontPage](https://wiki.libsdl.org/SDL2/FrontPage) for more info on installing and using SDL2.
+> Note: See [wiki.libsdl.org/SDL2/FrontPage](https://wiki.libsdl.org/SDL2/FrontPage) for more info on installing and using SDL2.
 
 ##### Preparing Build Directory
 * Create `build` directory in project's root folder
@@ -63,10 +63,10 @@ The following sections assume you at least have SDL2 and OpenGL installed on you
 > Note: Run `$ sdl2-config --cflags --libs` to get SDL args for gcc
 * Set working dir: `./src`
 * Flags: `-O3 -DNO_SHARED_MEMORY -D_REENTRANT -D_THREAD_SAFE`
-* Add SDL2 include dir: `-I<full-path-SDL2-include-dir>`
-* Add Libraries: `-lm -lSLD2 -lGL`
 * Build output: `-o ../build/test`
 * Source tagets to build: `test_lib.c sdl_gl.c glsl_shader.c glsl_ext.c`
+* Add SDL2 include dir: `-I<full-path-SDL2-include-dir>`
+* Add Libraries: `-lm -lSLD2 -lGL`
 
 ##### Running Test
 Execute `.\build\test.exe`
@@ -83,7 +83,9 @@ Expected four BMP textures.  First and last should have alpha channels.
 
 ### Building
 Building the static library.
-> Note: SDL2 and OpenGL linking not required for this step
+> Note: SDL2 and OpenGL linking not required for this step.
+</br>SDL2 includes are required
+</br>See [wiki.libsdl.org/SDL2/FrontPage](https://wiki.libsdl.org/SDL2/FrontPage) for more info on installing and using SDL2.
 
 #### Windows (cl.exe/lib.exe)
 * Build Objects (`cl.exe`):
@@ -98,24 +100,25 @@ Building the static library.
 
 #### Linux (gcc/ar)
 * Build Objects (`gcc`)
-   > Note: Run `$ sdl2-config --cflags` to get SDL args for gcc
+  > Note: Run `$ sdl2-config --cflags` to get SDL args for gcc
   * Set working dir: `./src`
   * Flags: `-O3 -c -DNO_SHARED_MEMORY -D_REENTRANT -D_THREAD_SAFE`
-  * Add SDL2 include dir: `-I<full-path-SDL2-include-dir>`
   * Source tagets to build: `sdl_gl.c glsl_shader.c glsl_ext.c`
+  * Add SDL2 include dir: `-I<full-path-SDL2-include-dir>`
 * Build Library (`ar`)
   * Flags: `rcs`
-  * Build output: `-o ../build/libSDL_EXT_GLSL.so`
+  * Build output: `../build/libSDL_EXT_GLSL.so`
   * Obj target to build: `sdl_gl.o glsl_shader.o glsl_ext.o`
 
 ### Package/Distribute
 
 #### Windows
 Run batch script: `scripts\package_for_dist.bat`
-> Note: Can run from project root directory or from `scripts` directory
+> Note: Can run from project root or `scripts` directory
 
 #### Linux
-...
+Run script: `scripts\package_for_dist.sh`
+> Note: Can run from project root or `scripts` directory
 
 After scripts, `dist` with subdirectory `SDL_EXT_GLSL` should exist.
 Enter `dist`, compress `SDL_EXT_GLSL` with versioning.

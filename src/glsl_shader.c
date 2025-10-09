@@ -175,7 +175,7 @@ char* readSourceFromFile(FILE* file) {
 	void* realloc_ptr;
 
 	// Init destination string
-	dest_str = (char*)malloc(sizeof(char) * MAX_SOURCE_SIZE);
+	dest_str = (char*)malloc(sizeof(char) * MAX_SOURCE_SIZE + 1);
 	dest_str[0] = '\0';
 
 	// Get source lines
